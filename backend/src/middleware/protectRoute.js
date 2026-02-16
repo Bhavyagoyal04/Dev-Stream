@@ -7,12 +7,20 @@ export const protectRoute = [
     try {
       const clerkId = req.auth().userId;
 
-      if (!clerkId) return res.status(401).json({ message: "Unauthorized - invalid token" });
+      if (!clerkId)
+        return res.status(401).json({ message: "Unauthorized - invalid token" });
 
       // find user in db by clerk ID
       const user = await User.findOne({ clerkId });
 
       if (!user) return res.status(404).json({ message: "User not found" });
+
+      // BLOCKED USER CHECK
+      if (user.blocked) {
+        return res.status(403).json({
+          message: "Your account has been blocked due to policy violations",
+        });
+      }
 
       // attach user to req
       req.user = user;

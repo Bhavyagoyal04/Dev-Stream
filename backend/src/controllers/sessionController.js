@@ -1,21 +1,25 @@
 import { chatClient, streamClient } from "../lib/stream.js";
 import Session from "../models/Session.js";
+import bcrypt from "bcryptjs";
 
 export async function createSession(req, res) {
   try {
-    const { problem, difficulty } = req.body;
+    const { sessionName, problem, difficulty, password, candidateEmail } = req.body;
     const userId = req.user._id;
     const clerkId = req.user.clerkId;
+    const hashedPassword = await bcrypt.hash(password, 10);
 
-    if (!problem || !difficulty) {
-      return res.status(400).json({ message: "Problem and difficulty are required" });
-    }
+    if (!sessionName || !problem || !difficulty || !password || !candidateEmail) {
+      return res.status(400).json({
+        message: "All fields including candidate email are required",
+      });
+    }    
 
     // generate a unique call id for stream video
     const callId = `session_${Date.now()}_${Math.random().toString(36).substring(7)}`;
 
     // create session in db
-    const session = await Session.create({ problem, difficulty, host: userId, callId });
+    const session = await Session.create({name: sessionName, problem, difficulty, password: hashedPassword, candidateEmail: candidateEmail.toLowerCase(), host: userId, callId });
 
     // create stream video call
     await streamClient.video.call("default", callId).getOrCreate({
@@ -27,7 +31,7 @@ export async function createSession(req, res) {
 
     // chat messaging
     const channel = chatClient.channel("messaging", callId, {
-      name: `${problem} Session`,
+      name: sessionName,
       created_by_id: clerkId,
       members: [clerkId],
     });
@@ -43,7 +47,16 @@ export async function createSession(req, res) {
 
 export async function getActiveSessions(_, res) {
   try {
-    const sessions = await Session.find({ status: "active" })
+    const userEmail = req.user.email.toLowerCase();
+    const userId = req.user._id;
+
+    const sessions = await Session.find({
+      status: "active",
+      $or: [
+        { host: userId },
+        { candidateEmail: userEmail },
+      ],
+    })
       .populate("host", "name profileImage email clerkId")
       .populate("participant", "name profileImage email clerkId")
       .sort({ createdAt: -1 })
@@ -95,23 +108,47 @@ export async function getSessionById(req, res) {
 export async function joinSession(req, res) {
   try {
     const { id } = req.params;
+    const { password } = req.body;
     const userId = req.user._id;
     const clerkId = req.user.clerkId;
+    const userEmail = req.user.email.toLowerCase();
 
     const session = await Session.findById(id);
 
     if (!session) return res.status(404).json({ message: "Session not found" });
+
+    // email restriction
+    if (session.candidateEmail !== userEmail) {
+      return res.status(403).json({
+        message: "You are not authorized to join this session",
+      });
+    }
+
+    if (!password) {
+      return res.status(400).json({ message: "Password is required" });
+    }
+
+    // verify password
+    const isMatch = await bcrypt.compare(password, session.password);
+
+    if (!isMatch) {
+      return res.status(401).json({ message: "Incorrect password" });
+    }
 
     if (session.status !== "active") {
       return res.status(400).json({ message: "Cannot join a completed session" });
     }
 
     if (session.host.toString() === userId.toString()) {
-      return res.status(400).json({ message: "Host cannot join their own session as participant" });
+      return res.status(400).json({
+        message: "Host cannot join their own session as participant",
+      });
     }
 
-    // check if session is already full - has a participant
-    if (session.participant) return res.status(409).json({ message: "Session is full" });
+    // session full check
+    if (session.participant) {
+      return res.status(409).json({ message: "Session is full" });
+    }
 
     session.participant = userId;
     await session.save();
@@ -159,6 +196,45 @@ export async function endSession(req, res) {
     res.status(200).json({ session, message: "Session ended successfully" });
   } catch (error) {
     console.log("Error in endSession controller:", error.message);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+}
+
+export async function kickParticipant(req, res) {
+  try {
+    const { id } = req.params;
+    const hostId = req.user._id;
+
+    const session = await Session.findById(id).populate("participant");
+
+    if (!session) return res.status(404).json({ message: "Session not found" });
+
+    if (session.host.toString() !== hostId.toString()) {
+      return res.status(403).json({ message: "Only host can kick participant" });
+    }
+
+    if (!session.participant) {
+      return res.status(400).json({ message: "No participant to kick" });
+    }
+
+    // block participant
+    session.participant.blocked = true;
+    await session.participant.save();
+
+    // end session
+    session.status = "completed";
+    await session.save();
+
+    // cleanup stream
+    const call = streamClient.video.call("default", session.callId);
+    await call.delete({ hard: true });
+
+    const channel = chatClient.channel("messaging", session.callId);
+    await channel.delete();
+
+    res.status(200).json({ message: "Participant kicked and blocked" });
+  } catch (err) {
+    console.log("kickParticipant error:", err.message);
     res.status(500).json({ message: "Internal Server Error" });
   }
 }

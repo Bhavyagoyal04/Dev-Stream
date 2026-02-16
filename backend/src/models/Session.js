@@ -2,6 +2,10 @@ import mongoose from "mongoose";
 
 const sessionSchema = new mongoose.Schema(
   {
+    name: {
+      type: String,
+      required: true,
+    },
     problem: {
       type: String,
       required: true,
@@ -11,6 +15,16 @@ const sessionSchema = new mongoose.Schema(
       enum: ["easy", "medium", "hard"],
       required: true,
     },
+    password: {
+      type: String,
+      required: true,
+    },
+    candidateEmail: {
+      type: String,
+      required: true,
+      lowercase: true,
+      trim: true,
+    },    
     host: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",

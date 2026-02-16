@@ -95,6 +95,18 @@ function SessionPage() {
     }
   };
 
+  const handleKick = () => {
+    if (
+      confirm(
+        "This will remove the candidate and permanently block their account. Continue?"
+      )
+    ) {
+      axiosInstance.post(`/sessions/${id}/kick`).then(() => {
+        navigate("/dashboard");
+      });
+    }
+  };  
+
   return (
     <div className="h-screen bg-base-100 flex flex-col">
       <Navbar />
@@ -133,18 +145,26 @@ function SessionPage() {
                             session?.difficulty.slice(1) || "Easy"}
                         </span>
                         {isHost && session?.status === "active" && (
-                          <button
-                            onClick={handleEndSession}
-                            disabled={endSessionMutation.isPending}
-                            className="btn btn-error btn-sm gap-2"
-                          >
-                            {endSessionMutation.isPending ? (
-                              <Loader2Icon className="w-4 h-4 animate-spin" />
-                            ) : (
-                              <LogOutIcon className="w-4 h-4" />
-                            )}
-                            End Session
-                          </button>
+                          <>
+                            <button
+                              onClick={handleKick}
+                              className="btn btn-warning btn-sm gap-2"
+                            >
+                              Kick & Ban
+                            </button>
+                            <button
+                              onClick={handleEndSession}
+                              disabled={endSessionMutation.isPending}
+                              className="btn btn-error btn-sm gap-2"
+                            >
+                              {endSessionMutation.isPending ? (
+                                <Loader2Icon className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <LogOutIcon className="w-4 h-4" />
+                              )}
+                              End Session
+                            </button>
+                          </>
                         )}
                         {session?.status === "completed" && (
                           <span className="badge badge-ghost badge-lg">Completed</span>
