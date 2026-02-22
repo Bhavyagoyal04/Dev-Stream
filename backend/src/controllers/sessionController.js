@@ -45,7 +45,7 @@ export async function createSession(req, res) {
   }
 }
 
-export async function getActiveSessions(_, res) {
+export async function getActiveSessions(req, res) {
   try {
     const userEmail = req.user.email.toLowerCase();
     const userId = req.user._id;
