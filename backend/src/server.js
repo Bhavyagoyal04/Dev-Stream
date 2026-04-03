@@ -31,8 +31,13 @@ app.get("/health", (req, res) => {
   res.status(200).json({ msg: "api is up and running" });
 });
 
-app.get("/debug", (req, res) => {
-  res.status(200).json({ url: req.url, path: req.path, method: req.method });
+app.all("/api/debug", (req, res) => {
+  res.status(200).json({
+    url: req.url,
+    path: req.path,
+    method: req.method,
+    headers: req.headers,
+  });
 });
 
 // make our app ready for deployment
