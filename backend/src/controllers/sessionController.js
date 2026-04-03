@@ -40,15 +40,18 @@ export async function createSession(req, res) {
 
     res.status(201).json({ session });
   } catch (error) {
-    console.log("Error in createSession controller:", error.message);
-    res.status(500).json({ message: "Internal Server Error" });
+    res.status(500).json({ message: "Internal Server Error", error: error.message });
   }
 }
 
 export async function getActiveSessions(req, res) {
   try {
-    const userEmail = req.user.email.toLowerCase();
+    const userEmail = req.user.email?.toLowerCase();
     const userId = req.user._id;
+
+    if (!userEmail) {
+      console.warn("⚠️ Warning: req.user.email is missing for user:", userId);
+    }
 
     const sessions = await Session.find({
       status: "active",
@@ -65,7 +68,7 @@ export async function getActiveSessions(req, res) {
     res.status(200).json({ sessions });
   } catch (error) {
     console.log("Error in getActiveSessions controller:", error.message);
-    res.status(500).json({ message: "Internal Server Error" });
+    res.status(500).json({ message: "Internal Server Error", error: error.message });
   }
 }
 
@@ -84,7 +87,7 @@ export async function getMyRecentSessions(req, res) {
     res.status(200).json({ sessions });
   } catch (error) {
     console.log("Error in getMyRecentSessions controller:", error.message);
-    res.status(500).json({ message: "Internal Server Error" });
+    res.status(500).json({ message: "Internal Server Error", error: error.message });
   }
 }
 

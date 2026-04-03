@@ -14,23 +14,37 @@ function App() {
   const { isSignedIn, isLoaded } = useUser();
   const { getToken } = useAuth();
   
+  // Set up global axios interceptor to attach Clerk token
+  useEffect(() => {
+    const requestInterceptor = axiosInstance.interceptors.request.use(async (config) => {
+      try {
+        const token = await getToken();
+        if (token) {
+          config.headers.Authorization = `Bearer ${token}`;
+        }
+      } catch (error) {
+        console.error("Error getting Clerk token:", error);
+      }
+      return config;
+    });
+
+    return () => {
+      axiosInstance.interceptors.request.eject(requestInterceptor);
+    };
+  }, [getToken]);
+
   useEffect(() => {
     const syncUser = async () => {
       if (isSignedIn) {
         try {
-          const token = await getToken();
-          await axiosInstance.post("/users/sync", {}, {
-            headers: {
-              Authorization: `Bearer ${token}`
-            }
-          });
+          await axiosInstance.post("/users/sync");
         } catch (err) {
           console.error("User sync failed:", err);
         }
       }
     };
     syncUser();
-  }, [isSignedIn, getToken]);  
+  }, [isSignedIn]);  
 
   // this will get rid of the flickering effect
   if (!isLoaded) return null;
