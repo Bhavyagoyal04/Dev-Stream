@@ -1,4 +1,4 @@
-import { useUser } from "@clerk/clerk-react";
+import { useAuth, useUser } from "@clerk/clerk-react";
 import { Navigate, Route, Routes } from "react-router";
 import HomePage from "./pages/HomePage";
 import { useEffect } from "react";
@@ -12,13 +12,25 @@ import SessionPage from "./pages/SessionPage";
 
 function App() {
   const { isSignedIn, isLoaded } = useUser();
+  const { getToken } = useAuth();
+  
   useEffect(() => {
-    if (isSignedIn) {
-      axiosInstance.post("/users/sync").catch((err) => {
-        console.error("User sync failed:", err);
-      });
-    }
-  }, [isSignedIn]);  
+    const syncUser = async () => {
+      if (isSignedIn) {
+        try {
+          const token = await getToken();
+          await axiosInstance.post("/users/sync", {}, {
+            headers: {
+              Authorization: `Bearer ${token}`
+            }
+          });
+        } catch (err) {
+          console.error("User sync failed:", err);
+        }
+      }
+    };
+    syncUser();
+  }, [isSignedIn, getToken]);  
 
   // this will get rid of the flickering effect
   if (!isLoaded) return null;
