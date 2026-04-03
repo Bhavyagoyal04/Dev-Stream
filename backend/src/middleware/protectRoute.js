@@ -13,7 +13,10 @@ export const protectRoute = [
       // find user in db by clerk ID
       const user = await User.findOne({ clerkId });
 
-      if (!user) return res.status(404).json({ message: "User not found" });
+      if (!user)
+        return res
+          .status(401)
+          .json({ message: "User not found in our records. Please ensure your account is synchronized." });
 
       // BLOCKED USER CHECK
       if (user.blocked) {
