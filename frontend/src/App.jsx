@@ -1,4 +1,4 @@
-import { useUser } from "@clerk/clerk-react";
+import { useAuth, useUser } from "@clerk/clerk-react";
 import { Navigate, Route, Routes } from "react-router";
 import HomePage from "./pages/HomePage";
 import { useEffect } from "react";
@@ -12,12 +12,38 @@ import SessionPage from "./pages/SessionPage";
 
 function App() {
   const { isSignedIn, isLoaded } = useUser();
+  const { getToken } = useAuth();
+  
+  // Set up global axios interceptor to attach Clerk token
   useEffect(() => {
-    if (isSignedIn) {
-      axiosInstance.post("/users/sync").catch((err) => {
-        console.error("User sync failed:", err);
-      });
-    }
+    const requestInterceptor = axiosInstance.interceptors.request.use(async (config) => {
+      try {
+        const token = await getToken();
+        if (token) {
+          config.headers.Authorization = `Bearer ${token}`;
+        }
+      } catch (error) {
+        console.error("Error getting Clerk token:", error);
+      }
+      return config;
+    });
+
+    return () => {
+      axiosInstance.interceptors.request.eject(requestInterceptor);
+    };
+  }, [getToken]);
+
+  useEffect(() => {
+    const syncUser = async () => {
+      if (isSignedIn) {
+        try {
+          await axiosInstance.post("/users/sync");
+        } catch (err) {
+          console.error("User sync failed:", err);
+        }
+      }
+    };
+    syncUser();
   }, [isSignedIn]);  
 
   // this will get rid of the flickering effect
