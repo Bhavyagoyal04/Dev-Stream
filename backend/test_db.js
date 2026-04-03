@@ -4,7 +4,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-dotenv.config(); // Since it's in the same dir as .env now
+dotenv.config({ path: path.join(__dirname, '.env') });
 
 const DB_URL = process.env.DB_URL;
 
@@ -15,21 +15,18 @@ async function testConnection() {
   }
 
   try {
-    console.log('Connecting to:', DB_URL.split('@')[1].split('/')[0]); // Log cluster only
     await mongoose.connect(DB_URL);
     console.log('Successfully connected to MongoDB');
 
-    const collections = await mongoose.connection.db.listCollections().toArray();
-    console.log('Collections in database:');
-    
-    if (collections.length === 0) {
-      console.log('No collections found in the database.');
-    }
+    const db = mongoose.connection.db;
 
-    for (const col of collections) {
-      const count = await mongoose.connection.db.collection(col.name).countDocuments();
-      console.log(`- ${col.name}: ${count} documents`);
-    }
+    const users = await db.collection("users").find({}).toArray();
+    console.log(`\n--- Users Collection (${users.length} documents) ---`);
+    console.log(JSON.stringify(users, null, 2));
+
+    const sessions = await db.collection("sessions").find({}).toArray();
+    console.log(`\n--- Sessions Collection (${sessions.length} documents) ---`);
+    console.log(JSON.stringify(sessions, null, 2));
 
     await mongoose.disconnect();
   } catch (error) {
