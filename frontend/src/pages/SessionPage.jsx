@@ -8,7 +8,7 @@ import axiosInstance from "../lib/axios";
 import Navbar from "../components/Navbar";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { getDifficultyBadgeClass } from "../lib/utils";
-import { Loader2Icon, LogOutIcon, PhoneOffIcon } from "lucide-react";
+import { KeyIcon, Loader2Icon, LockIcon, LogOutIcon, PhoneOffIcon, ShieldCheckIcon } from "lucide-react";
 import CodeEditorPanel from "../components/CodeEditorPanel";
 import OutputPanel from "../components/OutputPanel";
 
@@ -25,6 +25,7 @@ function SessionPage() {
   const [isRunning, setIsRunning] = useState(false);
   const [showRecordingsModal, setShowRecordingsModal] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(true);
+  const [password, setPassword] = useState("");
 
   const { data: sessionData, isLoading: loadingSession, refetch } = useSessionById(id);
 
@@ -50,15 +51,11 @@ function SessionPage() {
   const [selectedLanguage, setSelectedLanguage] = useState("javascript");
   const [code, setCode] = useState(problemData?.starterCode?.[selectedLanguage] || "");
 
-  // auto-join session if user is not already a participant and not the host
-  useEffect(() => {
-    if (!session || !user || loadingSession) return;
-    if (isHost || isParticipant) return;
-
-    joinSessionMutation.mutate({ id }, { onSuccess: refetch });
-
-    // remove the joinSessionMutation, refetch from dependencies to avoid infinite loop
-  }, [session, user, loadingSession, isHost, isParticipant, id]);
+  const handleJoin = (e) => {
+    e.preventDefault();
+    if (!password) return;
+    joinSessionMutation.mutate({ id, password }, { onSuccess: refetch });
+  };
 
   // redirect the "participant" when session ends
   useEffect(() => {
@@ -142,6 +139,103 @@ function SessionPage() {
       });
     }
   };  
+
+  if (loadingSession) {
+    return (
+      <div className="h-screen bg-base-300 flex flex-col">
+        <Navbar />
+        <div className="flex-1 flex flex-col items-center justify-center p-6 text-center">
+          <div className="relative mb-8">
+            <div className="absolute inset-0 bg-primary/20 blur-3xl rounded-full" />
+            <Loader2Icon className="w-16 h-16 animate-spin text-primary relative z-10" />
+          </div>
+          <h2 className="text-2xl font-bold mb-2">Loading Session...</h2>
+          <p className="text-base-content/60 max-w-sm">
+            Setting up your secure coding environment. This will only take a moment.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!session) {
+    return (
+      <div className="h-screen bg-base-300 flex flex-col">
+        <Navbar />
+        <div className="flex-1 flex flex-col items-center justify-center p-6 text-center">
+          <div className="size-20 bg-error/10 rounded-3xl flex items-center justify-center mb-6">
+            <PhoneOffIcon className="size-10 text-error" />
+          </div>
+          <h2 className="text-3xl font-black mb-2">Session Not Found</h2>
+          <p className="text-base-content/60 mb-8 max-w-sm">
+            This session may have ended or the link is incorrect. Please check with your host.
+          </p>
+          <button onClick={() => navigate("/dashboard")} className="btn btn-primary px-8">
+            Back to Dashboard
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isHost && !isParticipant) {
+    return (
+      <div className="h-screen bg-base-300 flex flex-col">
+        <Navbar />
+        <div className="flex-1 flex items-center justify-center p-4">
+          <div className="card w-full max-w-md bg-base-100 shadow-2xl border-2 border-primary/10">
+            <div className="card-body p-8">
+              <div className="flex flex-col items-center text-center mb-8">
+                <div className="size-20 bg-gradient-to-br from-primary to-secondary rounded-3xl flex items-center justify-center mb-6 shadow-lg shadow-primary/20">
+                  <LockIcon className="size-10 text-white" />
+                </div>
+                <h2 className="text-3xl font-black mb-2">Join Session</h2>
+                <p className="text-base-content/60">
+                  Enter the password provided by <span className="font-bold text-primary">{session.host?.name}</span> to access this session.
+                </p>
+              </div>
+
+              <form onSubmit={handleJoin} className="space-y-6">
+                <div className="form-control">
+                  <label className="label">
+                    <span className="label-text font-bold flex items-center gap-2">
+                      <KeyIcon className="size-4" />
+                      Session Password
+                    </span>
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="password"
+                      placeholder="••••••••"
+                      className="input input-bordered w-full pl-4 bg-base-200 focus:bg-base-100 transition-all border-2 focus:border-primary/50"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      required
+                    />
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={joinSessionMutation.isPending}
+                  className="btn btn-primary w-full h-14 text-lg gap-3"
+                >
+                  {joinSessionMutation.isPending ? (
+                    <Loader2Icon className="size-6 animate-spin" />
+                  ) : (
+                    <>
+                      <ShieldCheckIcon className="size-6" />
+                      Join Securely
+                    </>
+                  )}
+                </button>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="h-screen bg-base-100 flex flex-col">

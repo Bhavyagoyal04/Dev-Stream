@@ -18,6 +18,7 @@ const sessionSchema = new mongoose.Schema(
     password: {
       type: String,
       required: true,
+      select: false,
     },
     candidateEmail: {
       type: String,
