@@ -88,16 +88,14 @@ function VideoCallUI({ chatClient, channel, sessionId, isHost, onViewRecordings 
             )}
 
             {/* View recordings button - host only */}
-            {isHost && (
-              <button
-                onClick={onViewRecordings}
-                className="btn btn-sm btn-ghost gap-2"
-                title="View recordings"
-              >
-                <VideoIcon className="size-4" />
-                Recordings
-              </button>
-            )}
+            <button
+              onClick={onViewRecordings}
+              className="btn btn-sm btn-ghost gap-2"
+              title="View recordings"
+            >
+              <VideoIcon className="size-4" />
+              Recordings
+            </button>
 
             {chatClient && channel && (
               <button

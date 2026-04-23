@@ -116,7 +116,7 @@ export async function joinSession(req, res) {
     const clerkId = req.user.clerkId;
     const userEmail = req.user.email.toLowerCase();
 
-    const session = await Session.findById(id);
+    const session = await Session.findById(id).select("+password");
 
     if (!session) return res.status(404).json({ message: "Session not found" });
 
@@ -127,11 +127,9 @@ export async function joinSession(req, res) {
       });
     }
 
-    // verify password (only if user is NOT the invited candidate)
-    // if the user is the invited candidate, they can join without a password because they are already verified by email
+    // verify password
     const isMatch = await bcrypt.compare(password || "", session.password);
-
-    if (!isMatch && session.candidateEmail !== userEmail) {
+    if (!isMatch) {
       return res.status(401).json({ message: "Incorrect password" });
     }
 
@@ -287,6 +285,14 @@ export async function getRecordings(req, res) {
     const { id } = req.params;
     const session = await Session.findById(id);
     if (!session) return res.status(404).json({ message: "Session not found" });
+
+    // check if user is host or participant
+    if (
+      session.host.toString() !== req.user._id.toString() &&
+      session.participant?.toString() !== req.user._id.toString()
+    ) {
+      return res.status(403).json({ message: "You are not authorized to view these recordings" });
+    }
 
     const call = streamClient.video.call("default", session.callId);
     const response = await call.listRecordings();
